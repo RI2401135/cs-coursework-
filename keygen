@@ -16,6 +16,8 @@ PC2= [14, 17, 11, 24, 1, 5,
        44, 49, 39, 56, 34, 53,
        46, 42, 50, 36, 29, 32]
 
+SHIFT_SCHEDULE= [1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1]
+
 def permute(block,table):
     return''.join([block[i-1]for i in table ])
 
@@ -42,4 +44,6 @@ if __name__=="__main__":
     keys = generate-keys(key)
     print("generated keys :")
     for i, k in enumerate(keys, start=1):
+        print(f"k{i}:{k}")
+
         
