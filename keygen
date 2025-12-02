@@ -39,11 +39,17 @@ def generate_keys(key64):
 
     return round_keys
 
-if __name__=="__main__":
-    key = '0001001100110100010101110111100110011011101111001101111111110001'
-    keys = generate-keys(key)
-    print("generated keys :")
+
+
+if __name__ == "__main__":
+    key = ''.join(random.choice(['0', '1']) for _ in range(64))
+
+    keys = generate_keys(key)
+
+    print("Randomly generated 64-bit key:")
+    print(key)
+    print("\nGenerated Round Keys:")
     for i, k in enumerate(keys, start=1):
-        print(f"k{i}:{k}")
+        print(f"K{i}: {k}")
 
         
