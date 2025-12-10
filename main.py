@@ -88,7 +88,7 @@ def main():
             print("Decryption phase skipped. End.")
             
         
-        continue_choice = input("\nDo you want to process a new message block? (y/n): ").strip().lower()
+        continue_choice = input("\nDo you want to process a new message block? ").strip().lower()
         if not continue_choice.startswith('y'):
             print("\n" + "="*60)
             print("DES program terminated.")
