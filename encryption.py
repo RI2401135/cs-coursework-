@@ -3,7 +3,7 @@
 # encryption.py
 from typing import List
 
-# ----- Permutation tables (DES) -----
+
 IP = [
     58,50,42,34,26,18,10,2,
     60,52,44,36,28,20,12,4,
@@ -48,7 +48,7 @@ P_BOX = [
     22,11,4,25
 ]
 
-# S-Boxes: 8 boxes, each 4x16 (values 0..15) — encoded as lists for clarity
+
 SBOXES = [
     [
         [14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7],
@@ -100,7 +100,7 @@ SBOXES = [
     ],
 ]
 
-# ----- helpers (bitstring style, matching your keygen) -----
+
 def permute(block: str, table: List[int]) -> str:
     return ''.join(block[i - 1] for i in table)
 
@@ -114,10 +114,10 @@ def split_half(bits: str) -> (str, str):
 
 def _sbox_6_to_4(box_idx: int, six_bits: str) -> str:
     """One 6-bit chunk through S-box #box_idx -> 4-bit string."""
-    # Row: first and last bits (b1 b6), Column: middle four bits (b2..b5)
+    
     row = int(six_bits[0] + six_bits[5], 2)
     col = int(six_bits[1:5], 2)
-    val = SBOXES[box_idx][row][col]  # integer 0..15
+    val = SBOXES[box_idx][row][col]  
     return f"{val:04b}"
 
 def sbox_substitute(x48: str) -> str:
@@ -130,17 +130,17 @@ def sbox_substitute(x48: str) -> str:
 
 def feistel(r32: str, subkey48: str) -> str:
     """DES f-function: P( S( E(R) XOR K ) )."""
-    # 1) Expand 32 -> 48
+    # Expand 32 -> 48
     e = permute(r32, E_TABLE)
-    # 2) XOR with round key (48-bit)
+    #  XOR with round key (48-bit)
     x = xor_bits(e, subkey48)
-    # 3) S-box substitution (48 -> 32)
+    # S-box substitution (48 -> 32)
     s = sbox_substitute(x)
-    # 4) P-box permutation (32 -> 32)
+    # P-box permutation (32 -> 32)
     p = permute(s, P_BOX)
     return p
 
-# ----- public API -----
+
 def encrypt_block(block64: str, round_keys: List[str]) -> str:
     """
     Encrypt one 64-bit block (bitstring) using 16 round keys (each 48-bit bitstring).
@@ -149,11 +149,11 @@ def encrypt_block(block64: str, round_keys: List[str]) -> str:
     if len(block64) != 64 or any(c not in '01' for c in block64):
         raise ValueError("block64 must be a 64-character bitstring of '0'/'1'.")
 
-    # Initial Permutation
+    
     ip = permute(block64, IP)
     L, R = ip[:32], ip[32:]
 
-    # 16 rounds (Feistel)
+    # 16 rounds
     for i in range(16):
         new_L = R
         f_out = feistel(R, round_keys[i])
@@ -165,11 +165,7 @@ def encrypt_block(block64: str, round_keys: List[str]) -> str:
     return permute(pre_output, FP)
 
 def encrypt_blocks_ecb(blocks64: List[str], round_keys: List[str]) -> List[str]:
-    """
-    Encrypt multiple 64-bit blocks (list of bitstrings) in ECB (no IV, no chaining).
-    Each input element must be a 64-bit bitstring.
-    Returns list of 64-bit ciphertext bitstrings.
-    """
+    
     out = []
     for b in blocks64:
         out.append(encrypt_block(b, round_keys))
