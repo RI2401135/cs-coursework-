@@ -16,8 +16,6 @@ PC2= [14, 17, 11, 24, 1, 5,
        44, 49, 39, 56, 34, 53,
        46, 42, 50, 36, 29, 32]
 
-SHIFT_SCHEDULE= [1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1]
-
 def permute(block,table):
     return''.join([block[i-1]for i in table ])
 
@@ -39,17 +37,11 @@ def generate_keys(key64):
 
     return round_keys
 
-
-
-if __name__ == "__main__":
-    key = ''.join(random.choice(['0', '1']) for _ in range(64))
-
-    keys = generate_keys(key)
-
-    print("Randomly generated 64-bit key:")
-    print(key)
-    print("\nGenerated Round Keys:")
+if __name__=="__main__":
+    key = '0001001100110100010101110111100110011011101111001101111111110001'
+    keys = generate-keys(key)
+    print("generated keys :")
     for i, k in enumerate(keys, start=1):
-        print(f"K{i}: {k}")
+        
 
         
