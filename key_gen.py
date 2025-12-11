@@ -15,6 +15,7 @@ PC2= [14, 17, 11, 24, 1, 5,
        30, 40, 51, 45, 33, 48,
        44, 49, 39, 56, 34, 53,
        46, 42, 50, 36, 29, 32]
+SHIFT_SCHEDULE = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
 
 def permute(block,table):
     return''.join([block[i-1]for i in table ])
@@ -24,7 +25,7 @@ def left_shift(bits,n):
 
 def generate_keys(key64):
     key56=permute(key64,PC1)
-    C,D +key56[:28], key56[28:]
+    C,D =key56[:28], key56[28:]
     round_keys=[]
     for shift in SHIFT_SCHEDULE:
 
@@ -39,8 +40,8 @@ def generate_keys(key64):
 
 if __name__=="__main__":
     key = '0001001100110100010101110111100110011011101111001101111111110001'
-    keys = generate-keys(key)
+    keys = generate_keys(key)
     print("generated keys :")
     for i, k in enumerate(keys, start=1):
-        
+        print(f"Round {i:2}: {k}")
                 
