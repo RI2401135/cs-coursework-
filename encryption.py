@@ -1,6 +1,3 @@
-
-
-
 from typing import List
 
 
@@ -129,7 +126,7 @@ def sbox_substitute(x48: str) -> str:
     return ''.join(out)
 
 def feistel(r32: str, subkey48: str) -> str:
-    """DES f-function: P( S( E(R) XOR K ) )."""
+    
     # Expand 32 -> 48
     e = permute(r32, E_TABLE)
     #  XOR with round key (48-bit)

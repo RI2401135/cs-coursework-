@@ -1,108 +1,118 @@
 
-import key_gen
-import encryption
-import decryption
-import re
-import random 
+from encryption import encrypt_block
+from decryption import decrypt_block
+from key_gen import generate_keys
 
-def set_des_odd_parity(key_bytes: bytes) -> bytes:
-    adjusted = bytearray()
-    for b in key_bytes:
-        ones = ((b >> 1) & 0x7F).bit_count()
-        lsb = 1 if (ones % 2 == 0) else 0     
-        adjusted.append((b & 0xFE) | lsb)     
-    return bytes(adjusted)
+# --- Padding & Helper Functions ---
 
-def generate_random_des_key_hex_with_parity() -> str:
+def pad_zero(data):
+    """Adds null bytes (b'\x00') to fill the last block (8-byte block size)."""
+    block_size = 8
+    padding_len = block_size - (len(data) % block_size)
+    if padding_len == 8 and len(data) > 0: 
+        padding_len = 0
+    return data + b'\x00' * padding_len
+
+def unpad_zero(data):
+    """Removes trailing null bytes (b'\x00')."""
+    return data.rstrip(b'\x00')
+
+def bytes_to_bitstring(data):
+    """Convert bytes to a bitstring."""
+    return ''.join(f'{b:08b}' for b in data)
+
+def bitstring_to_bytes(bitstring):
+    """Convert a bitstring to bytes."""
+    # Ensure it's a multiple of 8 bits
+    if len(bitstring) % 8 != 0:
+        bitstring = bitstring.ljust((len(bitstring) + 7) // 8 * 8, '0')
+    return bytes(int(bitstring[i:i+8], 2) for i in range(0, len(bitstring), 8))
+
+def bytes_to_64bit_key(key):
+    """Convert key bytes to a 64-bit bitstring, padding or truncating as needed."""
+    # DES requires exactly 64 bits (8 bytes)
+    if len(key) < 8:
+        # Pad with zeros
+        key = key + b'\x00' * (8 - len(key))
+    elif len(key) > 8:
+        # Truncate to 8 bytes
+        key = key[:8]
+    return bytes_to_bitstring(key)
+
+# --- Core Functions ---
+
+def encrypt_bytes(data, key):
+    """Encrypts data in ECB mode with Zero Padding using DES."""
+    # Generate round keys from the key
+    key64 = bytes_to_64bit_key(key)
+    round_keys = generate_keys(key64)
     
-    raw = bytearray()
-    for _ in range(8):
-        b = random.getrandbits(8) & 0xFE
+    # Pad the data
+    padded_data = pad_zero(data)
+    
+    # Convert to bitstrings and encrypt block by block
+    out = bytearray()
+    for i in range(0, len(padded_data), 8):
+        block_bytes = padded_data[i:i+8]
+        # Ensure exactly 8 bytes (pad with zeros if needed)
+        if len(block_bytes) < 8:
+            block_bytes = block_bytes + b'\x00' * (8 - len(block_bytes))
+        block64 = bytes_to_bitstring(block_bytes)
+        # Should be exactly 64 bits now
         
-        raw.append(b)
-    key_with_parity = set_des_odd_parity(bytes(raw))
-    return key_with_parity.hex()
-
-
-def get_block_input(prompt: str, required_length_hex: int = 16) -> str:
-   
-    hex_re = re.compile(r'^[0-9a-fA-F]+$')
-
-    while True:
-        user_input = input(prompt).strip()
-        if user_input != "" and not hex_re.match(user_input):
-            print("ERROR: Input must consist only of hexadecimal characters (0-9, A-F). Please retry.")
-            continue
-
-        if len(user_input) > required_length_hex:
-            print(f"ERROR: Input exceeds the required {required_length_hex} hex characters (64 bits).")
-            continue
-
-        # Pad with zeros to the required length
-        if len(user_input) < required_length_hex:
-            padding_needed = required_length_hex - len(user_input)
-            padded_input = user_input.zfill(required_length_hex)
-            print(f"NOTE: Input padded with {padding_needed} zeros (0s) to meet the 64-bit block size.")
-            return padded_input.lower()
-
-        # Exactly required length
-        return user_input.lower()
-
-
-def main():
-
-
-    key_hex = generate_random_des_key_hex_with_parity()
-    print(f"[INFO] Random DES key (hex, odd parity): {key_hex}")
-    key_bin = key_gen.hex_to_bin(key_hex, 64)
-    print("\n[INFO] Starting Key Schedule generation...")
-    subkeys = key_gen.generate_keys(key_bin)
-    print("[INFO] 16 round subkeys (K1 through K16) successfully generated.")
+        encrypted_block = encrypt_block(block64, round_keys)
+        # Encrypted block is exactly 64 bits, convert to 8 bytes
+        out.extend(bitstring_to_bytes(encrypted_block)[:8])
     
-    while True:
+    return bytes(out)
 
-        # Plaintext Input
-        plaintext_hex = get_block_input("Enter the Plaintext message block (16 hex chars): ", 16)
-        plaintext_bin = key_gen.hex_to_bin(plaintext_hex, 64)
+def decrypt_bytes(data, key):
+    """Decrypts data in ECB mode and removes Zero Padding using DES."""
+    # Generate round keys from the key
+    key64 = bytes_to_64bit_key(key)
+    round_keys = generate_keys(key64)
+    
+    # Decrypt block by block
+    out = bytearray()
+    for i in range(0, len(data), 8):
+        block_bytes = data[i:i+8]
+        # Ensure exactly 8 bytes (pad with zeros if needed)
+        if len(block_bytes) < 8:
+            block_bytes = block_bytes + b'\x00' * (8 - len(block_bytes))
+        block64 = bytes_to_bitstring(block_bytes)
+        # Should be exactly 64 bits now
+        
+        decrypted_block = decrypt_block(block64, round_keys)
+        # Decrypted block is exactly 64 bits, convert to 8 bytes
+        out.extend(bitstring_to_bytes(decrypted_block)[:8])
+    
+    # Remove padding
+    return unpad_zero(bytes(out))
 
-        # Encrypt
-        try:
-            ciphertext_bin = encryption.encrypt_block(plaintext_bin, subkeys)
-        except Exception as e:
-            print(f"❌ ERROR during encryption: {e}")
-            continue
 
-        ciphertext_hex = key_gen.bin_to_hex(ciphertext_bin)
-
-        print(f"Padded Plaintext (Hex):  {plaintext_hex}")
-        print(f"Ciphertext (Hex Output): {ciphertext_hex}")
-
-        # Decryption Prompt
-        decrypt_choice = input("\nDo you wish to DECRYPT the ciphertext back to plaintext? (y/n): ").strip().lower()
-
-        if decrypt_choice.startswith('y'):
-            print("\n--- DECRYPTION PROCESS ---")
-            try:
-                decrypted_bin = decryption.decrypt_block(ciphertext_bin, subkeys)
-            except Exception as e:
-                print(f"❌ ERROR during decryption: {e}")
-                continue
-
-            decrypted_hex = key_gen.bin_to_hex(decrypted_bin)
-            print(f"Decrypted Plaintext (Hex): {decrypted_hex}")
-
-            if decrypted_hex == plaintext_hex:
-                print("✅ Decryption successful. Output matches original padded plaintext.")
-            else:
-                print("❌ ERROR: Decrypted text does not match the original plaintext.")
-        else:
-            print("Decryption phase skipped. End.")
-
-        continue_choice = input("\nDo you want to process a new message block? (y/n): ").strip().lower()
-        if not continue_choice.startswith('y'):
-            print("Exiting program")
-            break
-
+# --- Main Execution ---
 
 if __name__ == "__main__":
-    main()
+    
+    key = b'SECRETKEY'
+    
+    # Get plaintext from user
+    user_input = input("Enter plaintext to encrypt: ")
+    plaintext = user_input.encode('utf-8')
+    
+    # 1. Encryption
+    ciphertext = encrypt_bytes(plaintext, key)
+    
+    # 2. Decryption
+    decrypted_data = decrypt_bytes(ciphertext, key)
+    
+    # 3. Output
+    print(f"Original: {user_input}")
+    print(f"Ciphertext (Hex): {ciphertext.hex()}")
+    decrypted_text = decrypted_data.decode('utf-8')
+    print(f"Decrypted: {decrypted_text}")
+    
+    if decrypted_data == plaintext:
+        print("Verification: SUCCESS")
+    else:
+        print("Verification: FAILURE")
